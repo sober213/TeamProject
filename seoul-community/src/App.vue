@@ -4,8 +4,10 @@ import { createChatCompletion } from './utils/openai';
 import { buildMessages } from './utils/prompt';
 import festival from './data/서울_축제공연행사.json';
 import ChatMessage from './components/ChatMessage.vue';
+import BoardList from './components/board/BoardList.vue';
 
 const open = ref(false);
+const showBoard = ref(false);
 const input = ref('');
 const isThinking = ref(false);
 const messages = ref([
@@ -51,7 +53,17 @@ async function send() {
     </header>
 
     <main class="app-main">
-      <p>로컬 JSON 데이터 기반 챗봇을 사용해 보세요.</p>
+      <div style="margin-bottom:12px;">
+        <button @click="showBoard = !showBoard" style="margin-right:8px;">{{ showBoard ? '메인으로' : '커뮤니티 보기' }}</button>
+      </div>
+
+      <div v-if="showBoard">
+        <BoardList />
+      </div>
+
+      <div v-else>
+        <p>로컬 JSON 데이터 기반 챗봇을 사용해 보세요.</p>
+      </div>
     </main>
 
     <!-- Floating chat toggle -->
