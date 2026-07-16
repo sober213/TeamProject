@@ -34,6 +34,9 @@ const active = ref(null) // { type: 'detail'|'form', postId?, post? }
 
 function refresh() {
   posts.value = storage.getPosts()
+  // 게시판을 열면 최신글을 본 것으로 처리 (알림 자동 소거)
+  const latestId = posts.value && posts.value.length ? posts.value[0].id : null
+  if (latestId) localStorage.setItem('community_last_seen_id', latestId)
 }
 
 function openNew() {
