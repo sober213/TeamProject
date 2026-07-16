@@ -10,6 +10,12 @@
           <span>📍 서울 축제 AI 안내봇</span>
           <button @click="toggleChat" class="close-btn">✖</button>
         </div>
+
+        <!-- 기존 chat-messages 영역 대신 토글 렌더링 -->
+        <div class="chat-body">
+          <Calendar v-if="showCalendar" :events="cleanedFestivalData" />
+          <div v-else class="chat-messages"> ... 기존 메시지 반복부 ... </div>
+        </div>
         
         <!-- 채팅 말풍선 구역 -->
         <div class="chat-messages">
@@ -51,11 +57,57 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted, onBeforeUnmount } from 'vue';
 import cleanedFestivalData from '../data/서울_축제공연행사_cleaned.json';
 import { filterFestivalData } from '../utils/chatbotFilter';
 import { askOpenAI } from '../api/openai';
+import Calendar from './Calendar.vue'; // 새 파일
 
+// --- 알림 폴링 설정 ---
+import * as storage from '../utils/communityStorage';
+const POLL_INTERVAL_MS = 5000;
+const LAST_SEEN_KEY = 'community_last_seen_id';
+const hasNewPost = ref(false);
+let pollTimer = null;
+let lastSeenId = localStorage.getItem(LAST_SEEN_KEY) || null;
+
+function checkForNewPosts() {
+  try {
+    const posts = storage.getPosts();
+    const latestId = posts && posts.length ? posts[0].id : null;
+    if (!latestId) return;
+    // 첫 방문 시 기준값만 세팅 (알림 없음)
+    if (!lastSeenId) {
+      lastSeenId = latestId;
+      localStorage.setItem(LAST_SEEN_KEY, lastSeenId);
+      return;
+    }
+    if (latestId !== lastSeenId) {
+      hasNewPost.value = true;
+    }
+  } catch (e) {
+    console.error('알림 폴링 에러', e);
+  }
+}
+
+function markNotificationsRead() {
+  const posts = storage.getPosts();
+  const latestId = posts && posts.length ? posts[0].id : null;
+  if (latestId) {
+    lastSeenId = latestId;
+    localStorage.setItem(LAST_SEEN_KEY, lastSeenId);
+  }
+  hasNewPost.value = false;
+}
+
+function onFloatingClick() {
+  toggleChat();
+  if (hasNewPost.value) markNotificationsRead();
+}
+// --- 알림 폴링 끝 ---
+
+const showCalendar = ref(false);
+function toggleCalendar(){ showCalendar.value = !showCalendar.value; }
 // 챗봇 열림/닫힘 상태 관리
 const isOpen = ref(false);
 const userInput = ref('');
@@ -93,6 +145,15 @@ const handleSend = async () => {
     isLoading.value = false;
   }
 };
+
+// 마운트 시 폴링 시작, 언마운트 시 정리
+onMounted(() => {
+  checkForNewPosts(); // 즉시 체크
+  pollTimer = setInterval(checkForNewPosts, POLL_INTERVAL_MS);
+});
+onBeforeUnmount(() => {
+  if (pollTimer) clearInterval(pollTimer);
+});
 </script>
 
 <style scoped>
